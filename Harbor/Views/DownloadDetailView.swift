@@ -43,6 +43,7 @@ private struct DownloadInspectorContent: View {
 
                 DownloadTransferSection(item: item, center: center)
                 if item.backend == .aria2, item.backendIdentifier != nil {
+                    TorrentTransferDetailsSection(item: item, center: center)
                     TorrentTrackersSection(item: item, center: center)
                 }
                 DownloadStorageSection(item: item)
@@ -131,6 +132,112 @@ private struct DownloadInspectorContent: View {
 
     private func copySourceURL() {
         center.copySourceURL(id: item.id)
+    }
+}
+
+private struct TorrentTransferDetailsSection: View {
+    let item: DownloadItem
+    let center: DownloadCenter
+
+    @State private var snapshot: TorrentStatusSnapshot?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        DownloadDetailSection(title: "Torrent Details") {
+            VStack(alignment: .leading, spacing: 12) {
+                if let snapshot {
+                    Label {
+                        Text(seederSummary(snapshot.seeders))
+                    } icon: {
+                        Image(systemName: "person.2.fill")
+                    }
+                    .font(.callout)
+
+                    if snapshot.files.isEmpty {
+                        Text("File details will appear when torrent metadata is available.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(snapshot.files) { file in
+                                if file.id != snapshot.files.first?.id {
+                                    Divider()
+                                }
+                                TorrentFileProgressRow(file: file)
+                            }
+                        }
+                    }
+                    Text("Per-file piece availability isn’t exposed by the torrent engine.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView("Loading torrent details…")
+                        .controlSize(.small)
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .task(id: item.id) {
+            while Task.isCancelled == false {
+                do {
+                    snapshot = try await center.torrentStatus(for: item.id)
+                    errorMessage = nil
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+                do {
+                    try await Task.sleep(for: .seconds(2))
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    private func seederSummary(_ seeders: Int?) -> String {
+        guard let seeders else { return "Seeders unavailable" }
+        return String(localized: "\(seeders) seeders connected", comment: "Connected BitTorrent seeders")
+    }
+}
+
+private struct TorrentFileProgressRow: View {
+    let file: TorrentFileTransferStatus
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(URL(fileURLWithPath: file.path).lastPathComponent)
+                    .lineLimit(1)
+                    .help(file.path)
+                Spacer(minLength: 4)
+                if file.isSelected {
+                    Text("\(Int(file.progress * 100))%")
+                        .monospacedDigit()
+                } else {
+                    Text("Skipped")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            ProgressView(value: file.isSelected ? file.progress : 0, total: 1)
+                .progressViewStyle(.linear)
+                .tint(file.isSelected ? nil : .secondary)
+            HStack {
+                Text(file.path)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                Text("\(DownloadFormatting.byteString(file.completedLength)) of \(DownloadFormatting.byteString(file.length))")
+                    .monospacedDigit()
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 9)
     }
 }
 
