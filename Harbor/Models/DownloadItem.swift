@@ -783,6 +783,13 @@ final class DownloadItem: Identifiable {
         )
     }
 
+    var etaSortValue: Double? {
+        guard status == .downloading, speedBytesPerSecond > 0, expectedBytes > bytesWritten else {
+            return nil
+        }
+        return Double(expectedBytes - bytesWritten) / speedBytesPerSecond
+    }
+
     var displayLastError: String? {
         lastError.map { Self.displayErrorMessage(from: $0) }
     }

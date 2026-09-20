@@ -46,6 +46,15 @@ struct DownloadsContentView: View {
                     .customizationID("transfer")
                     .defaultVisibility(.visible)
 
+                    TableColumn("ETA", value: \.etaSortValue) { item in
+                        Text(item.etaText ?? "—")
+                            .monospacedDigit()
+                            .foregroundStyle(item.etaText == nil ? .secondary : .primary)
+                    }
+                    .width(100)
+                    .customizationID("eta")
+                    .defaultVisibility(.hidden)
+
                     TableColumn("Source", value: \.sourceDisplayText) { item in
                         DownloadSourceCell(item: item)
                     }
@@ -215,10 +224,6 @@ private struct DownloadTransferCell: View {
     private var transferSummary: String {
         if item.status == .seeding {
             return "↑ \(item.uploadedText) • \(item.shareRatioText) ratio"
-        }
-
-        if item.status == .downloading, let eta = item.etaText {
-            return String(localized: "\(item.progressText) • ETA \(eta)", comment: "Download progress followed by estimated time remaining")
         }
 
         return item.progressText
