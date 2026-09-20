@@ -46,10 +46,14 @@ struct DownloadsContentView: View {
                     .customizationID("transfer")
                     .defaultVisibility(.visible)
 
-                    TableColumn("ETA", value: \.etaSortValue) { item in
-                        Text(item.etaText ?? "—")
-                            .monospacedDigit()
-                            .foregroundStyle(item.etaText == nil ? .secondary : .primary)
+                    TableColumn("ETA", value: \.etaSecondsRemaining) { item in
+                        if let etaText = item.etaText {
+                            Text(etaText)
+                                .monospacedDigit()
+                        } else {
+                            Text("—")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .width(100)
                     .customizationID("eta")
