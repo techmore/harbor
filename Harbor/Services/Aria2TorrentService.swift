@@ -72,7 +72,7 @@ struct TorrentStatusSnapshot: Sendable {
     let infoHash: String?
     let errorMessage: String?
     let metadataName: String?
-    let seeders: Int?
+    let connectedSeeders: Int?
     let files: [TorrentFileTransferStatus]
     let filePaths: [String]
     let primaryPath: String?
@@ -91,7 +91,7 @@ struct TorrentStatusSnapshot: Sendable {
         infoHash: String?,
         errorMessage: String?,
         metadataName: String?,
-        seeders: Int? = nil,
+        connectedSeeders: Int? = nil,
         files: [TorrentFileTransferStatus] = [],
         filePaths: [String],
         primaryPath: String?,
@@ -109,7 +109,7 @@ struct TorrentStatusSnapshot: Sendable {
         self.infoHash = infoHash
         self.errorMessage = errorMessage
         self.metadataName = metadataName
-        self.seeders = seeders
+        self.connectedSeeders = connectedSeeders
         self.files = files
         self.filePaths = filePaths
         self.primaryPath = primaryPath
@@ -280,6 +280,7 @@ actor Aria2TorrentService {
     }
 
     private struct FilePayload: Decodable {
+        let index: String?
         let path: String?
         let selected: String?
         let length: String?
@@ -1056,12 +1057,12 @@ actor Aria2TorrentService {
             infoHash: payload.infoHash,
             errorMessage: payload.errorMessage,
             metadataName: payload.bittorrent?.info?.name,
-            seeders: Int(payload.numSeeders ?? ""),
+            connectedSeeders: Int(payload.numSeeders ?? ""),
             files: filePayloads.enumerated().compactMap { pair -> TorrentFileTransferStatus? in
                 let (offset, file) = pair
                 guard let path = file.path, path.isEmpty == false else { return nil }
                 return TorrentFileTransferStatus(
-                    index: offset + 1,
+                    index: Int(file.index ?? "") ?? offset + 1,
                     path: path,
                     length: Int64(file.length ?? "") ?? 0,
                     completedLength: Int64(file.completedLength ?? "") ?? 0,
