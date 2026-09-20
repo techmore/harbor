@@ -2574,6 +2574,10 @@ final class DownloadCenter {
         try await torrentService.trackers(gid: try torrentGID(for: id))
     }
 
+    func torrentStatus(for id: UUID) async throws -> TorrentStatusSnapshot {
+        try await torrentService.status(for: torrentGID(for: id))
+    }
+
     func addTorrentTracker(_ url: String, for id: UUID) async throws {
         try await torrentService.addTracker(url, gid: try torrentGID(for: id))
     }

@@ -43,6 +43,7 @@ private struct DownloadInspectorContent: View {
 
                 DownloadTransferSection(item: item, center: center)
                 if item.backend == .aria2, item.backendIdentifier != nil {
+                    TorrentTransferDetailsSection(item: item, center: center)
                     TorrentTrackersSection(item: item, center: center)
                 }
                 DownloadStorageSection(item: item)

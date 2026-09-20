@@ -72,16 +72,67 @@ struct TorrentStatusSnapshot: Sendable {
     let infoHash: String?
     let errorMessage: String?
     let metadataName: String?
+    let connectedSeeders: Int?
+    let files: [TorrentFileTransferStatus]
     let filePaths: [String]
     let primaryPath: String?
     let followedBy: [String]
     let following: String?
+
+    nonisolated init(
+        gid: String,
+        status: String,
+        totalLength: Int64,
+        completedLength: Int64,
+        uploadLength: Int64,
+        downloadSpeed: Double,
+        uploadSpeed: Double,
+        isSeeder: Bool,
+        infoHash: String?,
+        errorMessage: String?,
+        metadataName: String?,
+        connectedSeeders: Int? = nil,
+        files: [TorrentFileTransferStatus] = [],
+        filePaths: [String],
+        primaryPath: String?,
+        followedBy: [String],
+        following: String?
+    ) {
+        self.gid = gid
+        self.status = status
+        self.totalLength = totalLength
+        self.completedLength = completedLength
+        self.uploadLength = uploadLength
+        self.downloadSpeed = downloadSpeed
+        self.uploadSpeed = uploadSpeed
+        self.isSeeder = isSeeder
+        self.infoHash = infoHash
+        self.errorMessage = errorMessage
+        self.metadataName = metadataName
+        self.connectedSeeders = connectedSeeders
+        self.files = files
+        self.filePaths = filePaths
+        self.primaryPath = primaryPath
+        self.followedBy = followedBy
+        self.following = following
+    }
 
     nonisolated var isMetadataDownload: Bool {
         filePaths.contains { path in
             URL(fileURLWithPath: path).lastPathComponent.hasPrefix("[METADATA]")
         }
     }
+}
+
+struct TorrentFileTransferStatus: Identifiable, Sendable {
+    let index: Int
+    let path: String
+    let length: Int64
+    let completedLength: Int64
+    let isSelected: Bool
+
+    var id: Int { index }
+    var progress: Double { length > 0 ? Double(completedLength) / Double(length) : 0 }
 }
 
 struct TorrentStatusLineage: Sendable {
@@ -218,6 +269,7 @@ actor Aria2TorrentService {
         let uploadLength: String?
         let downloadSpeed: String?
         let uploadSpeed: String?
+        let numSeeders: String?
         let seeder: String?
         let infoHash: String?
         let errorMessage: String?
@@ -228,8 +280,11 @@ actor Aria2TorrentService {
     }
 
     private struct FilePayload: Decodable {
+        let index: String?
         let path: String?
         let selected: String?
+        let length: String?
+        let completedLength: String?
     }
 
     private struct BittorrentPayload: Decodable {
@@ -971,6 +1026,7 @@ actor Aria2TorrentService {
                         "downloadSpeed",
                         "uploadSpeed",
                         "seeder",
+                        "numSeeders",
                         "infoHash",
                         "errorMessage",
                         "files",
@@ -983,10 +1039,11 @@ actor Aria2TorrentService {
             as: StatusPayload.self
         )
 
-        let filePaths = payload.files?
+        let filePayloads = payload.files ?? []
+        let filePaths = filePayloads
             .filter { $0.selected != "false" }
             .compactMap(\.path)
-            .filter { $0.isEmpty == false } ?? []
+            .filter { $0.isEmpty == false }
 
         return TorrentStatusSnapshot(
             gid: payload.gid,
@@ -1000,6 +1057,18 @@ actor Aria2TorrentService {
             infoHash: payload.infoHash,
             errorMessage: payload.errorMessage,
             metadataName: payload.bittorrent?.info?.name,
+            connectedSeeders: Int(payload.numSeeders ?? ""),
+            files: filePayloads.enumerated().compactMap { pair -> TorrentFileTransferStatus? in
+                let (offset, file) = pair
+                guard let path = file.path, path.isEmpty == false else { return nil }
+                return TorrentFileTransferStatus(
+                    index: Int(file.index ?? "") ?? offset + 1,
+                    path: path,
+                    length: Int64(file.length ?? "") ?? 0,
+                    completedLength: Int64(file.completedLength ?? "") ?? 0,
+                    isSelected: file.selected != "false"
+                )
+            },
             filePaths: filePaths,
             primaryPath: preferredPath(from: filePaths),
             followedBy: payload.followedBy ?? [],
