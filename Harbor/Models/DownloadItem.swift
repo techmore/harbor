@@ -792,6 +792,10 @@ final class DownloadItem: Identifiable {
         return Double(expectedBytes - bytesWritten) / speedBytesPerSecond
     }
 
+    var etaSortValue: TimeInterval {
+        etaSecondsRemaining ?? .infinity
+    }
+
     var displayLastError: String? {
         lastError.map { Self.displayErrorMessage(from: $0) }
     }

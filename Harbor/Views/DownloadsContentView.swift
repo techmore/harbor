@@ -46,7 +46,7 @@ struct DownloadsContentView: View {
                     .customizationID("transfer")
                     .defaultVisibility(.visible)
 
-                    TableColumn("ETA", value: \.etaSecondsRemaining) { item in
+                    TableColumn("ETA", value: \.etaSortValue) { item in
                         if let etaText = item.etaText {
                             Text(etaText)
                                 .monospacedDigit()
